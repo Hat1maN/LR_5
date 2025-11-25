@@ -1,26 +1,27 @@
-version: '3.9'
+version: "3.9"
 
 services:
   web:
     build: .
-    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn brands_project.wsgi:application --bind 0.0.0.0:8000"
-    volumes:
-      - .:/app
-      - static_volume:/app/static
+    container_name: django_app
+    command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn brands_project.wsgi:application --bind 0.0.0.0:8000"
     ports:
       - "8000:8000"
+    volumes:
+      - static_volume:/app/static
     env_file:
       - .env
     depends_on:
       - db
-  
+
   db:
     image: postgres:15
+    container_name: postgres_db
     restart: always
     environment:
-      POSTGRES_DB: brandsdb
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
