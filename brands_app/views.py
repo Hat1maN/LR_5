@@ -54,9 +54,11 @@ def upload_file(request):
         if ext != ".xml":
             return render(request, "brands_app/upload_result.html", {"error": "Только .xml"})
         p = utils.storage_path()
+        print(f"Storage path: {p}")
         os.makedirs(p, exist_ok=True)
         fname = f"{os.urandom(8).hex()}{ext}"
         full = os.path.join(p, fname)
+        print(f"Saving file to: {full}")
         with open(full, "wb") as fh:
             for chunk in f.chunks():
                 fh.write(chunk)
@@ -67,8 +69,10 @@ def upload_file(request):
             if not ok:
                 os.remove(full)
                 return render(request, "brands_app/upload_result.html", {"error": MESSAGES["upload_invalid"] + f" ({msg})"})
+            print("File saved successfully")
             return render(request, "brands_app/upload_result.html", {"message": MESSAGES["upload_success"]})
         except Exception as e:
+            print(f"Validation error: {str(e)}")
             if os.path.exists(full):
                 os.remove(full)
             return render(request, "brands_app/upload_result.html", {"error": MESSAGES["upload_invalid"] + f" ({str(e)})"})
@@ -117,7 +121,7 @@ def edit_brand(request, pk):
                 form.add_error(None, "Запись с такими полями уже существует.")
             else:
                 form.save()
-                return redirect(reverse('brands_app:list') + '?source=db')
+                return redirect(reverse('brands_app:list_items') + '?source=db')
 
     else:
         # при редактировании показываем storage_choice = db
