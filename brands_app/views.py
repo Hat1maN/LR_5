@@ -131,7 +131,7 @@ def upload_file(request):
             filename = save_xml_tree(root)
 
             messages.success(request, f"Успешно добавлено {len(items)} записей → {filename}")
-            return redirect("brands_app:list_items") + "?source=xml"
+            return redirect("/?source=xml")
 
         except Exception as e:
             messages.error(request, f"Ошибка обработки файла: {e}")

@@ -13,19 +13,21 @@
         {% endfor %}
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" class="card p-4">
         {% csrf_token %}
         <div class="mb-3">
             <label for="xml_file" class="form-label">Выберите XML-файл</label>
             <input type="file" name="xml_file" id="xml_file" class="form-control" accept=".xml" required>
         </div>
-        <button type="submit" class="btn btn-success">Загрузить</button>
-        <a href="{% url 'brands_app:list_items' %}" class="btn btn-secondary ms-2">Назад</a>
+        <div>
+            <button type="submit" class="btn btn-success">Загрузить</button>
+            <a href="{% url 'brands_app:list_items' %}" class="btn btn-secondary ms-2">Назад</a>
+        </div>
     </form>
 
     <div class="mt-4 text-muted small">
         Файл должен содержать тег &lt;brands&gt; с одним или несколькими &lt;item&gt; внутри.<br>
-        Дубликаты в базе данных и в файле будут пропущены.
+        Дубликаты в базе данных будут пропущены.
     </div>
 </div>
 {% endblock %}
