@@ -29,40 +29,52 @@ def add_brand(request):
             country = form.cleaned_data["country"].strip()
             storage = form.cleaned_data["storage_choice"]
 
-            # Единая проверка дубликата в БД
+            # Проверка дубликата в БД
             if Brand.objects.filter(name__iexact=name, country__iexact=country).exists():
-                messages.error(request, "Этот бренд уже существует в базе данных!")
+                messages.error(request, "Этот бренд уже есть в базе данных!")
                 return render(request, "brands_app/add_brand.html", {"form": form})
 
             if storage == "db":
-                # Сохранение в БД
                 form.save()
-                messages.success(request, f"Бренд «{name}» сохранён в базу данных!")
-                return redirect("brands_app:list_items") + "?source=db"
+                messages.success(request, "Сохранено в базу данных!")
+                return redirect("/list/?source=db")  # ← ИСПРАВЛЕНО
 
             else:
-                # Сохранение в XML — используем твою систему!
-                data = [{
-                    "name": name,
-                    "country": country,
-                    "founded": form.cleaned_data["founded"],
-                    "note": form.cleaned_data["note"] or "",
-                    "color": form.cleaned_data["color"] or "",
-                }]
+                # Сохранение в ОДИН файл all_brands.xml
+                xml_path = os.path.join(settings.MEDIA_ROOT, "all_brands.xml")
+                os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
 
-                try:
-                    root = build_xml(data)                    # создаём <brands><item>...</item></brands>
-                    filename = save_xml_tree(root)            # сохраняем в uploaded_files с uuid
-                    messages.success(request, f"Бренд «{name}» сохранён как XML-файл: {filename}")
-                except Exception as e:
-                    messages.error(request, f"Ошибка сохранения XML: {e}")
-                    return render(request, "brands_app/add_brand.html", {"form": form})
+                if not os.path.exists(xml_path):
+                    root = etree.Element("brands")
+                    tree = etree.ElementTree(root)
+                    tree.write(xml_path, pretty_print=True, xml_declaration=True, encoding="utf-8")
 
-                return redirect("brands_app:list_items") + "?source=xml"
+                tree = etree.parse(xml_path)
+                root = tree.getroot()
+
+                # Проверка дубликата в XML
+                for item in root.findall("item"):
+                    n = item.find("name")
+                    c = item.find("country")
+                    if n is not None and c is not None and n.text == name and c.text == country:
+                        messages.error(request, "Этот бренд уже есть в XML!")
+                        return render(request, "brands_app/add_brand.html", {"form": form})
+
+                # Добавляем новый item
+                new_item = etree.SubElement(root, "item")
+                fields = ["name", "country", "founded", "note", "color"]
+                for field in fields:
+                    child = etree.SubElement(new_item, field)
+                    value = form.cleaned_data[field]
+                    child.text = str(value) if value not in ["", None] else ""
+
+                tree.write(xml_path, pretty_print=True, xml_declaration=True, encoding="utf-8")
+                messages.success(request, "Сохранено в XML!")
+                return redirect("/list/?source=xml")  # ← ИСПРАВЛЕНО
 
     else:
         form = BrandModelForm()
-
+        
     return render(request, "brands_app/add_brand.html", {"form": form})
 
 def upload_file(request):

@@ -12,19 +12,24 @@ services:
   web:
     build: .
     restart: always
-    command: gunicorn brands_project.wsgi:application --bind 0.0.0.0:8000
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput --clear &&
+             gunicorn brands_project.wsgi:application --bind 0.0.0.0:8000"
     volumes:
       - .:/app
-      - ./uploaded_files:/app/uploaded_files    # ← ВОТ ЭТО ГЛАВНОЕ
+      - ./uploaded_files:/app/uploaded_files
     ports:
       - "8000:8000"
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=db
     depends_on:
       - db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: db
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG}
 
 volumes:
   postgres_data:
