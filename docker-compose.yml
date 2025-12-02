@@ -1,5 +1,3 @@
-
-
 services:
   db:
     image: postgres:15
@@ -10,32 +8,23 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
 
   web:
     build: .
-    command: sh -c "python manage.py migrate && gunicorn brands_project.wsgi:application --bind 0.0.0.0:8000"
     restart: always
+    command: gunicorn brands_project.wsgi:application --bind 0.0.0.0:8000
     volumes:
       - .:/app
-      - static_volume:/app/static
-      - media_volume:/app/uploaded_files
+      - ./uploaded_files:/app/uploaded_files    # ← ВОТ ЭТО ГЛАВНОЕ
     ports:
       - "8000:8000"
-    depends_on:
-      - db
     environment:
-      - DEBUG=${DEBUG}
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_HOST=db
+    depends_on:
+      - db
 
 volumes:
   postgres_data:
-  static_volume:
-  media_volume:

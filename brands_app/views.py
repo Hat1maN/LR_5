@@ -12,34 +12,53 @@ from django.db import models as dj_models
 from django.http import JsonResponse
 from django.contrib import messages
 from .models import Brand
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .forms import BrandModelForm
+from .models import Brand
+import os
+import xml.etree.ElementTree as ET
+from django.conf import settings
+
 
 def add_brand(request):
     if request.method == "POST":
         form = BrandModelForm(request.POST)
-
         if form.is_valid():
-            name = form.cleaned_data['name']
-            country = form.cleaned_data['country']
-            founded = form.cleaned_data['founded']
-            note = form.cleaned_data['note']
-            color = form.cleaned_data['color']
+            name = form.cleaned_data["name"].strip()
+            country = form.cleaned_data["country"].strip()
+            storage = form.cleaned_data["storage_choice"]
 
-            # Проверка на дубль
-            exists = Brand.objects.filter(
-                name=name,
-                country=country,
-                founded=founded,
-                note=note,
-                color=color
-            ).exists()
-
-            if exists:
-                messages.error(request, "❗ Такая запись уже существует!")
+            # Единая проверка дубликата в БД
+            if Brand.objects.filter(name__iexact=name, country__iexact=country).exists():
+                messages.error(request, "Этот бренд уже существует в базе данных!")
                 return render(request, "brands_app/add_brand.html", {"form": form})
 
-            form.save()
-            messages.success(request, "✅ Запись успешно добавлена!")
-            return redirect("brands_app:list_items")
+            if storage == "db":
+                # Сохранение в БД
+                form.save()
+                messages.success(request, f"Бренд «{name}» сохранён в базу данных!")
+                return redirect("brands_app:list_items") + "?source=db"
+
+            else:
+                # Сохранение в XML — используем твою систему!
+                data = [{
+                    "name": name,
+                    "country": country,
+                    "founded": form.cleaned_data["founded"],
+                    "note": form.cleaned_data["note"] or "",
+                    "color": form.cleaned_data["color"] or "",
+                }]
+
+                try:
+                    root = build_xml(data)                    # создаём <brands><item>...</item></brands>
+                    filename = save_xml_tree(root)            # сохраняем в uploaded_files с uuid
+                    messages.success(request, f"Бренд «{name}» сохранён как XML-файл: {filename}")
+                except Exception as e:
+                    messages.error(request, f"Ошибка сохранения XML: {e}")
+                    return render(request, "brands_app/add_brand.html", {"form": form})
+
+                return redirect("brands_app:list_items") + "?source=xml"
 
     else:
         form = BrandModelForm()
@@ -110,23 +129,22 @@ def edit_brand(request, pk):
     if request.method == "POST":
         form = BrandModelForm(request.POST, instance=brand)
         if form.is_valid():
-            # на случай — убираем storage_choice
-            storage = form.cleaned_data.pop('storage_choice')
-            # проверка дубля (исключая текущий pk)
-            name = form.cleaned_data['name']
-            country = form.cleaned_data['country']
-            founded = form.cleaned_data.get('founded')
-            exists = Brand.objects.filter(name__iexact=name, country__iexact=country, founded=founded).exclude(pk=brand.pk).exists()
-            if exists:
-                form.add_error(None, "Запись с такими полями уже существует.")
-            else:
-                form.save()
-                return redirect(reverse('brands_app:list_items') + '?source=db')
+            name = form.cleaned_data['name'].strip().lower()
+            country = form.cleaned_data['country'].strip().lower()
 
+            # Проверка: если это не текущий бренд — дубликат!
+            if Brand.objects.filter(name__iexact=name, country__iexact=country).exclude(pk=pk).exists():
+                return render(request, "brands_app/edit_brand.html", {
+                    "form": form,
+                    "brand": brand,
+                    "error": "Бренд с таким именем и страной уже существует!"
+                })
+
+            form.save()
+            return redirect('/list/?source=db')
     else:
-        # при редактировании показываем storage_choice = db
-        form = BrandModelForm(instance=brand, initial={'storage_choice': 'db'})
-    return render(request, "brands_app/edit.html", {"form": form, "brand": brand})
+        form = BrandModelForm(instance=brand)
+    return render(request, "brands_app/edit_brand.html", {"form": form, "brand": brand})
 
 # Удаление (AJAX POST)
 @require_POST

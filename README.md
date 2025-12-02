@@ -13,7 +13,7 @@
 
 1. Клонировать репозиторий или скачать файлы:
 ```bash
-git clone <https://github.com/Hat1maN/LR_3>
+git clone <https://github.com/Hat1maN/LR_5>
 cd <LR5>
 python -m venv .venv
 .venv\Scripts\activate      # Windows
@@ -25,35 +25,32 @@ http://127.0.0.1:8000/ — форма добавления марки
 http://127.0.0.1:8000/upload/ — загрузка XML
 http://127.0.0.1:8000/list/ — просмотр всех XML
 
-# LR_5: Django Brands App with Docker and PostgreSQL
 
-Это приложение для управления брендами (CRUD, XML-upload, поиск). Докеризовано с PostgreSQL.
+# ДЛЯ ЛАБЫ 5
 
-## Требования
-- Docker и Docker Compose
-- Python 3.10+ (для локальной разработки)
+git clone https://github.com/Hat1maN/LR_5.git
+cd LR_5
+# Создай файл .env
+cat > .env << EOF
+POSTGRES_DB=brands_db
+POSTGRES_USER=brands_user
+POSTGRES_PASSWORD=12345
+EOF
+генерация секретного ключа - python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())" 
 
-## Запуск в разработке
-1. Клонируйте репозиторий: `git clone https://github.com/Hat1maN/LR_5.git`
-2. Создайте `.env` (см. пример в инструкции).
-3. Запустите: `docker-compose up -d --build`
-4. Примените миграции: `docker-compose exec web python manage.py migrate`
-5. Создайте superuser: `docker-compose exec web python manage.py createsuperuser`
-6. Доступ: http://localhost:8000 (admin: /admin/)
+либо безопасный ключ - django-insecure-+8x3d8!k#r@9q2v&f5^m*p(l_j)h7g2a1c4e6u0n8i3o5y_t9r
 
-## Запуск в production
-- В `.env` установите DEBUG=False, сильный SECRET_KEY.
-- Добавьте reverse-proxy (nginx) для static/media.
-- Запустите: `docker-compose -f docker-compose.yml up -d`
+# Запусти проект одной командой
+docker-compose up -d --build
+# Проверь, что всё работает
+docker-compose ps
+# Открой в браузере
+http://localhost:8000 или http://127.0.0.1:8000
 
-## Миграция данных из SQLite
-1. Экспорт: `python manage.py dumpdata brands_app.Brand > data.json`
-2. В Docker: `docker-compose exec web python manage.py loaddata data.json`
+#Если вообще не знаешь IP (резервный вариант)
+Добавь в docker-compose.yml вот эту строчку в сервис web:
+ports:
+  - "0.0.0.0:8000:8000"    # вместо просто "8000:8000"
 
-## Структура
-- `brands_app/`: Основное приложение.
-- `Dockerfile`: Для web.
-- `docker-compose.yml`: Оркестрация.
-- Volumes: Для DB, static, media.
-
-Функционал: Добавление брендов (DB/XML), поиск (AJAX), CRUD, просмотр.
+#Как остановить
+docker-compose down

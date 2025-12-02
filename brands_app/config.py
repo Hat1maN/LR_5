@@ -1,6 +1,6 @@
 STORAGE_DIR = "uploaded_files"  # где хранятся XML
 XML_ROOT_TAG = "brands"
-XML_ITEM_TAG = "brand"
+XML_ITEM_TAG = "item"
 
 FIELDS = [
     ("name", "Название марки", True, "str"),
