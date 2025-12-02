@@ -47,6 +47,9 @@ docker-compose ps
 # Открой в браузере
 http://localhost:8000 или http://127.0.0.1:8000
 
+#миграции
+docker-compose exec web python manage.py migrate
+
 #Если вообще не знаешь IP (резервный вариант)
 Добавь в docker-compose.yml вот эту строчку в сервис web:
 ports:
