@@ -19,6 +19,7 @@ python -m venv .venv
 .venv\Scripts\activate      # Windows
 source .venv/bin/activate   # Linux/macOS
 pip install django lxml
+
 python manage.py runserver
 Перейти в браузере:
 http://127.0.0.1:8000/ — форма добавления марки
@@ -28,17 +29,13 @@ http://127.0.0.1:8000/list/ — просмотр всех XML
 
 # ДЛЯ ЛАБЫ 5
 
-git clone https://github.com/Hat1maN/LR_5.git
-cd LR_5
-# Создай файл .env
-cat > .env << EOF
-POSTGRES_DB=brands_db
-POSTGRES_USER=brands_user
-POSTGRES_PASSWORD=12345
-EOF
-генерация секретного ключа - python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())" 
+# 1. Создаём базу данных в PostgreSQL (один раз)
+createdb -h localhost -U postgres -p 5432 brands_db
+# ← попросит пароль → вводишь 12345 и Enter
+# 2. Применяем миграции и запускаем сайт
+python manage.py migrate
+python manage.py runserver 0.0.0.0:8000
 
-либо безопасный ключ - django-insecure-+8x3d8!k#r@9q2v&f5^m*p(l_j)h7g2a1c4e6u0n8i3o5y_t9r
 
 # Запусти проект одной командой
 docker-compose up -d --build

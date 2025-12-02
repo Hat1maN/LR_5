@@ -13,12 +13,13 @@ from django.http import JsonResponse
 from django.contrib import messages
 from .models import Brand
 from django.shortcuts import render, redirect
-from django.contrib import messages
+
 from .forms import BrandModelForm
 from .models import Brand
 import os
 import xml.etree.ElementTree as ET
 from django.conf import settings
+from .utils import validate_xml_tree, build_xml, save_xml_tree
 
 
 def add_brand(request):
@@ -37,7 +38,7 @@ def add_brand(request):
             if storage == "db":
                 form.save()
                 messages.success(request, "Сохранено в базу данных!")
-                return redirect("/list/?source=db")  # ← ИСПРАВЛЕНО
+                return redirect("/list/?source=db")  
 
             else:
                 # Сохранение в ОДИН файл all_brands.xml
@@ -70,44 +71,72 @@ def add_brand(request):
 
                 tree.write(xml_path, pretty_print=True, xml_declaration=True, encoding="utf-8")
                 messages.success(request, "Сохранено в XML!")
-                return redirect("/list/?source=xml")  # ← ИСПРАВЛЕНО
+                return redirect("/list/?source=xml")  
 
     else:
         form = BrandModelForm()
-        
+
     return render(request, "brands_app/add_brand.html", {"form": form})
 
 def upload_file(request):
-    # Оставляем без изменений (файловая загрузка XML)
-    if request.method == "POST" and request.FILES.get("file"):
-        f = request.FILES["file"]
-        ext = os.path.splitext(f.name)[1].lower()
-        if ext != ".xml":
-            return render(request, "brands_app/upload_result.html", {"error": "Только .xml"})
-        p = utils.storage_path()
-        print(f"Storage path: {p}")
-        os.makedirs(p, exist_ok=True)
-        fname = f"{os.urandom(8).hex()}{ext}"
-        full = os.path.join(p, fname)
-        print(f"Saving file to: {full}")
-        with open(full, "wb") as fh:
-            for chunk in f.chunks():
-                fh.write(chunk)
-        # validate
+    if request.method == "POST" and request.FILES.get("xml_file"):
+        xml_file = request.FILES["xml_file"]
+
         try:
-            tree = etree.parse(full)
-            ok, msg = utils.validate_xml_tree(tree)
+            # 1. Читаем и валидируем загруженный файл
+            tree = etree.parse(xml_file)
+            ok, msg = validate_xml_tree(tree)
             if not ok:
-                os.remove(full)
-                return render(request, "brands_app/upload_result.html", {"error": MESSAGES["upload_invalid"] + f" ({msg})"})
-            print("File saved successfully")
-            return render(request, "brands_app/upload_result.html", {"message": MESSAGES["upload_success"]})
+                messages.error(request, f"Файл невалиден: {msg}")
+                return redirect("brands_app:upload_file")
+
+            # 2. Собираем все записи из файла
+            items = []
+            for item in tree.getroot().findall("item"):
+                name_el = item.find("name")
+                country_el = item.find("country")
+                if name_el is None or country_el is None:
+                    continue
+
+                name = (name_el.text or "").strip()
+                country = (country_el.text or "").strip()
+
+                # Проверка дубликата в БД
+                if Brand.objects.filter(name__iexact=name, country__iexact=country).exists():
+                    continue  # пропускаем, если уже есть в БД
+
+                # Проверка дубликата в текущем загружаемом файле
+                if any(
+                    it.get("name", "").strip() == name and it.get("country", "").strip() == country
+                    for it in items
+                ):
+                    continue
+
+                # Добавляем запись
+                data = {
+                    "name": name,
+                    "country": country,
+                    "founded": (item.find("founded").text or "") if item.find("founded") is not None else "",
+                    "note": (item.find("note").text or "") if item.find("note") is not None else "",
+                    "color": (item.find("color").text or "") if item.find("color") is not None else "",
+                }
+                items.append(data)
+
+            if not items:
+                messages.info(request, "Нет новых записей для добавления (все дубликаты или пусто)")
+                return redirect("brands_app:upload_file")
+
+            # 3. Создаём НОВЫЙ файл с рандомным именем и сохраняем туда всё
+            root = build_xml(items)
+            filename = save_xml_tree(root)
+
+            messages.success(request, f"Успешно добавлено {len(items)} записей → {filename}")
+            return redirect("brands_app:list_items") + "?source=xml"
+
         except Exception as e:
-            print(f"Validation error: {str(e)}")
-            if os.path.exists(full):
-                os.remove(full)
-            return render(request, "brands_app/upload_result.html", {"error": MESSAGES["upload_invalid"] + f" ({str(e)})"})
-    return render(request, "brands_app/upload_result.html")
+            messages.error(request, f"Ошибка обработки файла: {e}")
+
+    return render(request, "brands_app/upload_file.html")
 
 def list_items(request):
     # выбор источника: ?source=xml или ?source=db (по умолчанию xml)
