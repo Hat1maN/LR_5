@@ -32,10 +32,6 @@ pip install -r requirements.txt
 # 1. Создаём базу данных в PostgreSQL (один раз)
 createdb -h localhost -U postgres -p 5432 brands_db
 # ← попросит пароль → вводишь 12345 и Enter
-# 2. Применяем миграции и запускаем сайт
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
-Открываешь браузер → http://localhost:8000 или http://127.0.0.1:8000 → всё работает идеально
 
 # Запусти проект одной командой
 docker-compose up -d --build

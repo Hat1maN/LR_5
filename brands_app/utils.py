@@ -17,13 +17,24 @@ def build_xml(data):
     return root
 
 def save_xml_tree(root):
-    p = storage_path()
-    os.makedirs(p, exist_ok=True)
-    fname = f"{uuid.uuid4().hex}.xml"
-    full = os.path.join(p, fname)
-    tree = etree.ElementTree(root)
-    tree.write(full, pretty_print=True, xml_declaration=True, encoding="utf-8")
-    return fname
+    os.makedirs(settings.MEDIA_ROOT, exist_ok=True)
+    unified_path = os.path.join(settings.MEDIA_ROOT, "all_brands.xml")
+    
+    # Если файла нет — просто сохраняем
+    if not os.path.exists(unified_path):
+        tree = etree.ElementTree(root)
+        tree.write(unified_path, pretty_print=True, xml_declaration=True, encoding="utf-8")
+        return "all_brands.xml"
+    
+    # Если файл есть — ДОБАВЛЯЕМ в него
+    existing_tree = etree.parse(unified_path)
+    existing_root = existing_tree.getroot()
+    
+    for item in root.findall("item"):
+        existing_root.append(item)
+    
+    existing_tree.write(unified_path, pretty_print=True, xml_declaration=True, encoding="utf-8")
+    return "all_brands.xml"
 
 def validate_xml_tree(tree):
     root = tree.getroot()
